@@ -2,31 +2,45 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:13
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    image: postgres:15-alpine
+    container_name: ims_postgres_container
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=inventory_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: secret_secure_password
+      POSTGRES_DB: inventory_db
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data_volume:/var/lib/postgresql/data
+    restart: always
 
   backend:
     build: ./backend
+    container_name: ims_fastapi_backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/inventory_db
+      - DATABASE_URL=postgresql://user:secret_secure_password@db:5432/inventory_db
     depends_on:
       - db
+    restart: always
 
   frontend:
     build: ./frontend
+    container_name: ims_react_frontend
     ports:
-      - "3000:3000"
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    stdin_open: true
     depends_on:
       - backend
 
 volumes:
-  postgres_data:
+  postgres_data_volume:
